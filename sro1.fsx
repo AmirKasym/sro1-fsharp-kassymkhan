@@ -44,3 +44,34 @@ let parseTrip (cells: string[]) =
 let trips = readRows "data.csv" |> List.map parseTrip
 
 printfn $"Прочитано поездок: {List.length trips}"
+
+// Считает общее время поездки: ожидание плюс время в пути
+let totalMinutes (trip: Trip) = trip.WaitMin + trip.RideMin
+
+// Возвращает число поездок, сумму денег и общее время в дороге в часах
+let summary (trips: Trip list) =
+    let count = List.length trips
+    let money = trips |> List.sumBy (fun t -> t.Cost)
+    let hours = float (trips |> List.sumBy totalMinutes) / 60.0
+    (count, money, hours)
+
+// Находит среднее ожидание для каждого маршрута, от большего к меньшему
+let averageWaitByRoute (trips: Trip list) =
+    trips
+    |> List.groupBy (fun t -> t.Route)
+    |> List.map (fun (route, group) ->
+        (route, group |> List.averageBy (fun t -> float t.WaitMin)))
+    |> List.sortByDescending snd
+
+// Считает, сколько процентов всего времени в дороге уходит на ожидание
+let waitShare (trips: Trip list) =
+    let waitTotal = trips |> List.sumBy (fun t -> t.WaitMin)
+    let allTotal = trips |> List.sumBy totalMinutes
+    float waitTotal / float allTotal * 100.0
+
+let (count, money, hours) = summary trips
+printfn $"Поездок: {count}, потрачено: {money} ₸, в дороге: %.1f{hours} ч"
+printfn "Среднее ожидание по маршрутам:"
+averageWaitByRoute trips
+|> List.iter (fun (route, wait) -> printfn $"  {route}: %.1f{wait} мин")
+printfn $"Доля ожидания: %.1f{waitShare trips} %%"
