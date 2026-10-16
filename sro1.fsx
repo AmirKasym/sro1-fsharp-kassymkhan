@@ -75,3 +75,29 @@ printfn "Среднее ожидание по маршрутам:"
 averageWaitByRoute trips
 |> List.iter (fun (route, wait) -> printfn $"  {route}: %.1f{wait} мин")
 printfn $"Доля ожидания: %.1f{waitShare trips} %%"
+
+// Находит день, в который больше всего минут ушло на дорогу
+let slowestDay (trips: Trip list) =
+    trips
+    |> List.groupBy (fun t -> t.Date)
+    |> List.map (fun (date, group) -> (date, group |> List.sumBy totalMinutes))
+    |> List.maxBy snd
+
+// Проверяет, началась ли поездка в утренний или вечерний час пик
+let isRushHour (trip: Trip) =
+    let hour = int (trip.Time.Substring(0, 2))
+    (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)
+
+// Сравнивает среднее время в пути в час пик и в остальное время
+let rushVsCalm (trips: Trip list) =
+    let rush = trips |> List.filter isRushHour
+    let calm = trips |> List.filter (fun t -> not (isRushHour t))
+    let averageRide (group: Trip list) =
+        if List.isEmpty group then 0.0
+        else group |> List.averageBy (fun t -> float t.RideMin)
+    (averageRide rush, averageRide calm)
+
+let (dayDate, dayMinutes) = slowestDay trips
+printfn $"Самый долгий день: {showDate dayDate}, {dayMinutes} мин"
+let (rushRide, calmRide) = rushVsCalm trips
+printfn $"В пути в час пик: %.1f{rushRide} мин, в остальное время: %.1f{calmRide} мин"
