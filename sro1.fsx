@@ -43,8 +43,6 @@ let parseTrip (cells: string[]) =
 
 let trips = readRows "data.csv" |> List.map parseTrip
 
-printfn $"Прочитано поездок: {List.length trips}"
-
 // Считает общее время поездки: ожидание плюс время в пути
 let totalMinutes (trip: Trip) = trip.WaitMin + trip.RideMin
 
@@ -69,13 +67,6 @@ let waitShare (trips: Trip list) =
     let allTotal = trips |> List.sumBy totalMinutes
     float waitTotal / float allTotal * 100.0
 
-let (count, money, hours) = summary trips
-printfn $"Поездок: {count}, потрачено: {money} ₸, в дороге: %.1f{hours} ч"
-printfn "Среднее ожидание по маршрутам:"
-averageWaitByRoute trips
-|> List.iter (fun (route, wait) -> printfn $"  {route}: %.1f{wait} мин")
-printfn $"Доля ожидания: %.1f{waitShare trips} %%"
-
 // Находит день, в который больше всего минут ушло на дорогу
 let slowestDay (trips: Trip list) =
     trips
@@ -97,7 +88,28 @@ let rushVsCalm (trips: Trip list) =
         else group |> List.averageBy (fun t -> float t.RideMin)
     (averageRide rush, averageRide calm)
 
-let (dayDate, dayMinutes) = slowestDay trips
-printfn $"Самый долгий день: {showDate dayDate}, {dayMinutes} мин"
-let (rushRide, calmRide) = rushVsCalm trips
-printfn $"В пути в час пик: %.1f{rushRide} мин, в остальное время: %.1f{calmRide} мин"
+// Находит день недели, в который я трачу на поездки больше всего денег
+let spendByWeekday (trips: Trip list) =
+    let culture = System.Globalization.CultureInfo "ru-RU"
+    trips
+    |> List.groupBy (fun t -> t.Date.ToString("dddd", culture))
+    |> List.map (fun (day, group) -> (day, group |> List.sumBy (fun t -> t.Cost)))
+    |> List.maxBy snd
+
+// Печатает итоговый отчёт по всем поездкам
+let printReport (trips: Trip list) =
+    let (count, money, hours) = summary trips
+    let (dayDate, dayMinutes) = slowestDay trips
+    let (rushRide, calmRide) = rushVsCalm trips
+    let (weekday, weekdayMoney) = spendByWeekday trips
+    printfn "=== Мой транспорт ==="
+    printfn $"Поездок: {count}, потрачено: {money} ₸, в дороге: {hours:F1} ч"
+    printfn "Среднее ожидание по маршрутам:"
+    averageWaitByRoute trips
+    |> List.iter (fun (route, wait) -> printfn $"  {route}: {wait:F1} мин")
+    printfn $"Доля ожидания: {waitShare trips:F1}%% всего времени в дороге"
+    printfn $"Самый долгий день: {showDate dayDate} ({dayMinutes} мин)"
+    printfn $"Средняя поездка в час пик: {rushRide:F1} мин, в остальное время: {calmRide:F1} мин"
+    printfn $"Больше всего денег на поездки уходит в день недели: {weekday} ({weekdayMoney} ₸)"
+
+printReport trips
